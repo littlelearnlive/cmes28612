@@ -1,0 +1,183 @@
+From fe031d70922d2b46a2889e8a46661302d5bcddb0 Mon Sep 17 00:00:00 2001
+From: root <root@localhost.localdomain>
+Date: Mon, 28 Mar 2022 20:01:40 +0800
+Subject: [PATCH] add SM support for tpm2-tools
+
+---
+ lib/tpm2_alg_util.c        | 10 +++++-----
+ tools/tpm2_certify.c       |  4 ++--
+ tools/tpm2_create.c        |  4 ++--
+ tools/tpm2_createprimary.c |  4 ++--
+ tools/tpm2_getmanufec.c    |  4 ++--
+ tools/tpm2_getpubak.c      |  6 +++---
+ tools/tpm2_getpubek.c      |  4 ++--
+ 7 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/lib/tpm2_alg_util.c b/lib/tpm2_alg_util.c
+index 6ed3e9a..5cc5980 100644
+--- a/lib/tpm2_alg_util.c
++++ b/lib/tpm2_alg_util.c
+@@ -350,7 +350,7 @@ UINT8* tpm2_extract_plain_signature(UINT16 *size, TPMT_SIGNATURE *signature) {
+         memcpy(buffer, hmac_sig, *size);
+         break;
+     }
+-    case TPM2_ALG_ECDSA: {
++    case TPM2_ALG_SM2: {
+         const size_t ECC_PAR_LEN = sizeof(TPM2B_ECC_PARAMETER);
+         *size = ECC_PAR_LEN * 2;
+         buffer = malloc(*size);
+@@ -358,11 +358,11 @@ UINT8* tpm2_extract_plain_signature(UINT16 *size, TPMT_SIGNATURE *signature) {
+             goto nomem;
+         }
+         memcpy(buffer,
+-            (UINT8*)&(signature->signature.ecdsa.signatureR),
++            (UINT8*)&(signature->signature.sm2.signatureR),
+             ECC_PAR_LEN
+         );
+         memcpy(buffer + ECC_PAR_LEN,
+-            (UINT8*)&(signature->signature.ecdsa.signatureS),
++            (UINT8*)&(signature->signature.sm2.signatureS),
+             ECC_PAR_LEN
+         );
+         break;
+@@ -420,8 +420,8 @@ bool get_signature_scheme(TSS2_SYS_CONTEXT *sapi_context,
+         scheme->details.hmac.hashAlg = halg;
+         break;
+     case TPM2_ALG_ECC :
+-        scheme->scheme = TPM2_ALG_ECDSA;
+-        scheme->details.ecdsa.hashAlg = halg;
++        scheme->scheme = TPM2_ALG_SM2;
++        scheme->details.sm2.hashAlg = halg;
+         break;
+     case TPM2_ALG_SYMCIPHER :
+     default:
+diff --git a/tools/tpm2_certify.c b/tools/tpm2_certify.c
+index d989632..9bf016e 100644
+--- a/tools/tpm2_certify.c
++++ b/tools/tpm2_certify.c
+@@ -118,8 +118,8 @@ static bool set_scheme(TSS2_SYS_CONTEXT *sapi_context, TPMI_DH_OBJECT key_handle
+         scheme->details.hmac.hashAlg = halg;
+         break;
+     case TPM2_ALG_ECC :
+-        scheme->scheme = TPM2_ALG_ECDSA;
+-        scheme->details.ecdsa.hashAlg = halg;
++        scheme->scheme = TPM2_ALG_SM2;
++        scheme->details.sm2.hashAlg = halg;
+         break;
+     case TPM2_ALG_SYMCIPHER :
+     default:
+diff --git a/tools/tpm2_create.c b/tools/tpm2_create.c
+index 60229ed..363a26f 100644
+--- a/tools/tpm2_create.c
++++ b/tools/tpm2_create.c
+@@ -133,7 +133,7 @@ int setup_alg()
+     case TPM2_ALG_ECC:
+         ctx.in_public.publicArea.parameters.eccDetail.symmetric.algorithm = TPM2_ALG_NULL;
+         ctx.in_public.publicArea.parameters.eccDetail.scheme.scheme = TPM2_ALG_NULL;
+-        ctx.in_public.publicArea.parameters.eccDetail.curveID = TPM2_ECC_NIST_P256;
++        ctx.in_public.publicArea.parameters.eccDetail.curveID = TPM2_ECC_SM2_P256;
+         ctx.in_public.publicArea.parameters.eccDetail.kdf.scheme = TPM2_ALG_NULL;
+         ctx.in_public.publicArea.unique.ecc.x.size = 0;
+         ctx.in_public.publicArea.unique.ecc.y.size = 0;
+@@ -143,7 +143,7 @@ int setup_alg()
+         tpm2_errata_fixup(SPEC_116_ERRATA_2_7,
+                           &ctx.in_public.publicArea.objectAttributes);
+ 
+-        ctx.in_public.publicArea.parameters.symDetail.sym.algorithm = TPM2_ALG_AES;
++        ctx.in_public.publicArea.parameters.symDetail.sym.algorithm = TPM2_ALG_SM4;
+         ctx.in_public.publicArea.parameters.symDetail.sym.keyBits.sym = 128;
+         ctx.in_public.publicArea.parameters.symDetail.sym.mode.sym = TPM2_ALG_CFB;
+         ctx.in_public.publicArea.unique.sym.size = 0;
+diff --git a/tools/tpm2_createprimary.c b/tools/tpm2_createprimary.c
+index eac83a5..b41e442 100644
+--- a/tools/tpm2_createprimary.c
++++ b/tools/tpm2_createprimary.c
+@@ -121,14 +121,14 @@ int setup_alg(void) {
+         ctx.in_public.publicArea.parameters.eccDetail.symmetric.keyBits.aes = 128;
+         ctx.in_public.publicArea.parameters.eccDetail.symmetric.mode.sym = TPM2_ALG_CFB;
+         ctx.in_public.publicArea.parameters.eccDetail.scheme.scheme = TPM2_ALG_NULL;
+-        ctx.in_public.publicArea.parameters.eccDetail.curveID = TPM2_ECC_NIST_P256;
++        ctx.in_public.publicArea.parameters.eccDetail.curveID = TPM2_ECC_SM2_P256;
+         ctx.in_public.publicArea.parameters.eccDetail.kdf.scheme = TPM2_ALG_NULL;
+         ctx.in_public.publicArea.unique.ecc.x.size = 0;
+         ctx.in_public.publicArea.unique.ecc.y.size = 0;
+         break;
+ 
+     case TPM2_ALG_SYMCIPHER:
+-        ctx.in_public.publicArea.parameters.symDetail.sym.algorithm = TPM2_ALG_AES;
++        ctx.in_public.publicArea.parameters.symDetail.sym.algorithm = TPM2_ALG_SM4;
+         ctx.in_public.publicArea.parameters.symDetail.sym.keyBits.sym = 128;
+         ctx.in_public.publicArea.parameters.symDetail.sym.mode.sym = TPM2_ALG_CFB;
+         ctx.in_public.publicArea.unique.sym.size = 0;
+diff --git a/tools/tpm2_getmanufec.c b/tools/tpm2_getmanufec.c
+index 207a0ea..5af2c76 100644
+--- a/tools/tpm2_getmanufec.c
++++ b/tools/tpm2_getmanufec.c
+@@ -114,13 +114,13 @@ int set_key_algorithm(TPM2B_PUBLIC *inPublic) {
+         inPublic->publicArea.parameters.eccDetail.symmetric.keyBits.aes = 128;
+         inPublic->publicArea.parameters.eccDetail.symmetric.mode.sym = TPM2_ALG_CFB;
+         inPublic->publicArea.parameters.eccDetail.scheme.scheme = TPM2_ALG_NULL;
+-        inPublic->publicArea.parameters.eccDetail.curveID = TPM2_ECC_NIST_P256;
++        inPublic->publicArea.parameters.eccDetail.curveID = TPM2_ECC_SM2_P256;
+         inPublic->publicArea.parameters.eccDetail.kdf.scheme = TPM2_ALG_NULL;
+         inPublic->publicArea.unique.ecc.x.size = 32;
+         inPublic->publicArea.unique.ecc.y.size = 32;
+         break;
+     case TPM2_ALG_SYMCIPHER:
+-        inPublic->publicArea.parameters.symDetail.sym.algorithm = TPM2_ALG_AES;
++        inPublic->publicArea.parameters.symDetail.sym.algorithm = TPM2_ALG_SM4;
+         inPublic->publicArea.parameters.symDetail.sym.keyBits.aes = 128;
+         inPublic->publicArea.parameters.symDetail.sym.mode.sym = TPM2_ALG_CFB;
+         inPublic->publicArea.unique.sym.size = 0;
+diff --git a/tools/tpm2_getpubak.c b/tools/tpm2_getpubak.c
+index 898c304..88a8de3 100644
+--- a/tools/tpm2_getpubak.c
++++ b/tools/tpm2_getpubak.c
+@@ -98,13 +98,13 @@ static bool set_ecc_signing_algorithm(UINT32 sign_alg, UINT32 digest_alg,
+         TPM2B_PUBLIC *in_public) {
+ 
+     if (sign_alg == TPM2_ALG_NULL) {
+-        sign_alg = TPM2_ALG_ECDSA;
++        sign_alg = TPM2_ALG_SM2;
+     }
+ 
+     in_public->publicArea.parameters.eccDetail.scheme.scheme = sign_alg;
+     switch (sign_alg) {
+-    case TPM2_ALG_ECDSA :
+     case TPM2_ALG_SM2 :
++    case TPM2_ALG_ECDSA :
+     case TPM2_ALG_ECSCHNORR :
+     case TPM2_ALG_ECDAA :
+         in_public->publicArea.parameters.eccDetail.scheme.details.anySig.hashAlg =
+@@ -172,7 +172,7 @@ static bool set_key_algorithm(TPM2B_PUBLIC *in_public)
+         in_public->publicArea.parameters.eccDetail.symmetric.algorithm = TPM2_ALG_NULL;
+         in_public->publicArea.parameters.eccDetail.symmetric.mode.sym = TPM2_ALG_NULL;
+         in_public->publicArea.parameters.eccDetail.symmetric.keyBits.sym = 0;
+-        in_public->publicArea.parameters.eccDetail.curveID = TPM2_ECC_NIST_P256;
++        in_public->publicArea.parameters.eccDetail.curveID = TPM2_ECC_SM2_P256;
+         in_public->publicArea.parameters.eccDetail.kdf.scheme = TPM2_ALG_NULL;
+         in_public->publicArea.unique.ecc.x.size = 0;
+         in_public->publicArea.unique.ecc.y.size = 0;
+diff --git a/tools/tpm2_getpubek.c b/tools/tpm2_getpubek.c
+index 42fa98c..6c4c36f 100644
+--- a/tools/tpm2_getpubek.c
++++ b/tools/tpm2_getpubek.c
+@@ -119,13 +119,13 @@ static bool set_key_algorithm(TPM2B_PUBLIC *inPublic)
+                 TPM2_ALG_CFB;
+         inPublic->publicArea.parameters.eccDetail.scheme.scheme =
+                 TPM2_ALG_NULL;
+-        inPublic->publicArea.parameters.eccDetail.curveID = TPM2_ECC_NIST_P256;
++        inPublic->publicArea.parameters.eccDetail.curveID = TPM2_ECC_SM2_P256;
+         inPublic->publicArea.parameters.eccDetail.kdf.scheme = TPM2_ALG_NULL;
+         inPublic->publicArea.unique.ecc.x.size = 32;
+         inPublic->publicArea.unique.ecc.y.size = 32;
+         break;
+     case TPM2_ALG_SYMCIPHER :
+-        inPublic->publicArea.parameters.symDetail.sym.algorithm = TPM2_ALG_AES;
++        inPublic->publicArea.parameters.symDetail.sym.algorithm = TPM2_ALG_SM4;
+         inPublic->publicArea.parameters.symDetail.sym.keyBits.aes = 128;
+         inPublic->publicArea.parameters.symDetail.sym.mode.sym = TPM2_ALG_CFB;
+         inPublic->publicArea.unique.sym.size = 0;
+-- 
+1.8.3.1
+
